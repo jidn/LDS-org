@@ -58,13 +58,13 @@ There are some endpoints, while published, don't appear to be working. Here is a
 * cal2x-event
 * cal2x-events
 
-Calendar requests appear to be working by the descriptions at  <https://tech.lds.org/wiki/LDS_Tools_Web_Services> appear to be out of date.  For an example see the testing suite.
+Calendar requests appear to be working but the descriptions at  <https://tech.lds.org/wiki/LDS_Tools_Web_Services> appear to be out of date.  For an example see the testing suite.
 
 
 ### Secure your username and password
 
-You need to keep you username and password secret.  On the other hand,
-you want to automate a process of getting and processing information
+You need to keep your username and password secret.  However, you also
+want to automate the process of getting and processing information
 from LDS.org.  You could put your username and password in your code,
 but the possibility of sharing your information is very possible when
 you show or share your code.
@@ -83,7 +83,7 @@ I take the above and put it in a file 'ldsorg-password.txt'.  From the
 command line, type the following and you should see your LDS.org username.
 
 ```sh
-source lds0rg-password.txt
+source ldsorg-password.txt
 echo $LDSORG_USERNAME
 ```
 
