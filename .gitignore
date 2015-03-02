@@ -1,0 +1,10 @@
+*.swp
+*.pyc
+.cache
+.coverage
+env
+htmlcov
+build
+dist
+LDS_org.egg-info
+notes.sh
