@@ -1,4 +1,5 @@
 import os
+from logging import getLogger, StreamHandler
 import contextlib
 import requests
 
@@ -8,6 +9,7 @@ ENV_PASSWORD = 'LDSORG_PASSWORD'
 
 __version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
 
+logger = getLogger("lds-org")
 
 @contextlib.contextmanager
 def session(username=None, password=None):
@@ -20,7 +22,9 @@ def session(username=None, password=None):
     ```
     """
     lds = LDSOrg(username, password, signin=True)
+    logger.debug(u"%x yielding start", id(lds.session))
     yield lds
+    logger.debug(u"%x yielding stop", id(lds.session))
     lds.get(lds['signout-url'])
 
 
@@ -33,7 +37,7 @@ class LDSOrg(object):
     """
 
     def __init__(self, username=None, password=None, signin=False,
-                 url='https://ident.lds.org/sso/UI/Login'):
+                 url=None):
         """Get endpoints and possibly signin.
 
         :param username: LDS.org username
@@ -44,7 +48,11 @@ class LDSOrg(object):
         """
         self.session = requests.Session()
         self.unitNo = ''
+
+        logger.debug(u'%x __init__', id(self.session))
         self._get_endpoints()
+        if url is None:
+            url = self['auth-url']
         if username or signin:
             self.signin(username, password, url)
 
@@ -61,14 +69,15 @@ class LDSOrg(object):
 
         Now we can use the class instance just as we would a session.
         """
+        logger.debug(u'%x getattr %s', id(self.session), key)
         return getattr(self.session, key)
 
-    def signin(self, username=None, password=None,
-               url='https://ident.lds.org/sso/UI/Login'):
+    def signin(self, username=None, password=None, url=None):
         """Sign in to LDS.org using a member username and password.
 
         :param username: LDS.org username
         :param password: LDS.org password
+        :param url: Override the default endpoint url
 
         To keep these values out of code, you can use the following
         environment variables: LDSORG_USERNAME AND LDSORG_PASSWORD
@@ -78,18 +87,21 @@ class LDSOrg(object):
         if password is None:
             password = os.getenv(ENV_PASSWORD)
 
-        rv = self.session.post(self.endpoints['auth-url'],
-                               data={'username': username,
-                                     'password': password})
+        if url is None:
+            url = self['auth-url']
+        logger.debug(u'%x SIGNIN %s %s', id(self.session), username, url)
+        rv = self.session.post(url, data={'username': username,
+                                          'password': password})
         if 'etag' not in rv.headers:
             raise ValueError('Username/password failed')
+        logger.debug(u'%x SIGNIN success!', id(self.session))
 
         # Get the persons unit number, needed for other endponts
         r = self.get('current-user-unit')
         assert r.status_code == 200
         self.unitNo = r.json()['message']
 
-    def get(self, url, *args, **kwargs):
+    def get(self, eurl, *args, **kwargs):
         """Get an HTTP response from endpoint or URL.
 
         Some endpoints need substitution to create a valid URL. Usually,
@@ -98,13 +110,14 @@ class LDSOrg(object):
         of the logged in user.  You can use the ward_No parameter or fix
         it yourself if this is not the correct behaviour.
 
-        :param url: an endpoint or URL
+        :param eurl: an endpoint or URL
         :param args: substituation for %* in the endpoint
         :param ward_No: for use with an endpoint
         :param kwargs: paramaters for :meth:`requests.Session.get`
         """
         try:
-            url = self.endpoints[url]
+            url = self.endpoints[eurl]
+            logger.debug(u'%x GET %s', id(self.session), eurl)
         except KeyError:
             pass
         else:
@@ -115,7 +128,9 @@ class LDSOrg(object):
                     url = url % args
                 else:
                     raise ValueError("endpoint {} needs arguments".format(url))
-        return self.session.get(url, **kwargs)
+            eurl = url
+        logger.debug(u'%x GET %s', id(self.session), eurl)
+        return self.session.get(eurl, **kwargs)
 
     def _get_endpoints(self):
         """Get the currently supported endpoints provided by LDS Tools.
@@ -123,8 +138,10 @@ class LDSOrg(object):
         See https://tech.lds.org/wiki/LDS_Tools_Web_Services
         """
         # Get the endpoints
+        logger.debug(u"%x Get endpoints", id(self.session))
         rv = self.session.get(CONFIG_URL)
         assert rv.status_code == 200
+        logger.debug(u'%x Got endponts', id(self.session))
         self.endpoints = rv.json()
 
 

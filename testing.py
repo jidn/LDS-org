@@ -1,5 +1,7 @@
 import os
 import datetime
+import logging
+from io import StringIO
 import pytest
 import lds_org
 
@@ -90,3 +92,20 @@ class TestSignin(object):
             rv = lds.get('cal2x-event', event['id'])
             assert rv.status_code == 200
             assert rv.json()['id'] == event['id']
+
+    def test_logging(self):
+        """Checking the logger
+        """
+        pseudo = StringIO()
+        handler = logging.StreamHandler(pseudo)
+        lds_org.logger.setLevel(logging.DEBUG)
+        lds_org.logger.addHandler(handler)
+
+        with lds_org.session() as lds:
+            rv = lds.get('current-user-id')
+            assert rv.status_code == 200
+            assert rv.json() > 1000000
+        log = pseudo.getvalue().split('\n')
+        assert len(log) == 13
+        lds_org.logger.removeHandler(handler)
+

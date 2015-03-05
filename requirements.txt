@@ -1,2 +1,4 @@
 requests
 certifi
+pytest
+pytest-cov

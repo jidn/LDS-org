@@ -93,14 +93,13 @@ depends: .depends-ci .depends-dev
 
 .PHONY: .depends-ci
 .depends-ci: env Makefile $(DEPENDS_CI)
-$(DEPENDS_CI): Makefile tests/requirements.txt
+$(DEPENDS_CI): Makefile 
 	$(PIP) install $(PIP_CACHE) --upgrade flake8 pep257
-	$(PIP) install -r tests/requirements.txt
 	touch $(DEPENDS_CI)  # flag to indicate dependencies are installed
 
 .PHONY: .depends-dev
 .depends-dev: env Makefile $(DEPENDS_DEV)
-$(DEPENDS_DEV): Makefile tests/requirements.txt
+$(DEPENDS_DEV): Makefile 
 	$(PIP) install $(PIP_CACHE) --upgrade pep8radius pygments wheel
 	touch $(DEPENDS_DEV)  # flag to indicate dependencies are installed
 
@@ -128,15 +127,15 @@ PEP257_IGNORED := D100
 
 .PHONY: pep8
 pep8: .depends-ci
-	$(PEP8) $(PACKAGE) tests --ignore=$(PEP8_IGNORED)
+	$(PEP8) $(PACKAGE) --ignore=$(PEP8_IGNORED)
 
 .PHONY: flake8
 flake8: .depends-ci
-	$(FLAKE8) $(PACKAGE) tests --ignore=$(PEP8_IGNORED)
+	$(FLAKE8) $(PACKAGE) --ignore=$(PEP8_IGNORED)
 
 .PHONY: pep257
 pep257: .depends-ci
-	$(PEP257) $(PACKAGE) tests --ignore=$(PEP257_IGNORED)
+	$(PEP257) $(PACKAGE) --ignore=$(PEP257_IGNORED)
 
 .PHONY: fix
 fix: .depends-dev
@@ -146,11 +145,11 @@ fix: .depends-dev
 
 PYTEST_OPTS := --cov $(PACKAGE) \
 			   --cov-report term-missing \
-			   --cov-report html --pdb
+			   --cov-report html --pdb -x
 
 .PHONY: test
 test: .depends-ci
-	$(PYTEST) tests $(PYTEST_OPTS)
+	$(PYTEST) testing.py $(PYTEST_OPTS)
 
 .PHONY: htmlcov
 htmlcov: test
@@ -172,9 +171,9 @@ clean-all: clean clean-env .clean-cache
 
 .PHONY: .clean-build
 .clean-build:
-	find tests -name '*.pyc' -delete
+	find -name '*.pyc' -not -path "./env" -delete
 	find -name $(PACKAGE)c -delete
-	find tests -name '__pycache__' -delete
+	find -name '__pycache__' -delete
 	rm -rf $(EGG_INFO)
 
 .PHONY: .clean-doc
