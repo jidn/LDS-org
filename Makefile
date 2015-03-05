@@ -145,7 +145,7 @@ fix: .depends-dev
 
 PYTEST_OPTS := --cov $(PACKAGE) \
 			   --cov-report term-missing \
-			   --cov-report html --pdb -x
+			   --cov-report html
 
 .PHONY: test
 test: .depends-ci
