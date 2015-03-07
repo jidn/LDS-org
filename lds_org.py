@@ -1,5 +1,5 @@
 import os
-from logging import getLogger, StreamHandler
+from logging import getLogger
 import contextlib
 import requests
 
@@ -10,6 +10,7 @@ ENV_PASSWORD = 'LDSORG_PASSWORD'
 __version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
 
 logger = getLogger("lds-org")
+
 
 @contextlib.contextmanager
 def session(username=None, password=None):

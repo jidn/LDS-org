@@ -14,7 +14,7 @@ setup(
     author='Clinton James',
     author_email='clinton.james@anuit.com',
     url='https://www.github.com/jidn/lds-org/',
-    download_url='https://github.com/jidn/lds-org/tarball/0.0.1.dev',
+    download_url='https://github.com/jidn/lds-org/tarball/' + __version__,
     description='Access LDS.org json information',
     long_description=open('README.md').read(),
     version=__version__,

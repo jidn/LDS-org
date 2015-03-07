@@ -199,9 +199,11 @@ authors:
 	echo "Authors\n=======\n\nA huge thanks to all of our contributors:\n\n" > AUTHORS.md
 	git log --raw | grep "^Author: " | cut -d ' ' -f2- | cut -d '<' -f1 | sed 's/^/- /' | sort | uniq >> AUTHORS.md
 
+PYPI := -r pypi
+
 .PHONY: register
 register: 
-	$(PYTHON) setup.py register
+	$(PYTHON) setup.py register $(PYPI)
 
 .PHONY: dist
 dist: test
@@ -210,8 +212,8 @@ dist: test
 
 .PHONY: upload
 upload: .git-no-changes register
-	$(PYTHON) setup.py sdist upload
-	$(PYTHON) setup.py bdist_wheel upload
+	$(PYTHON) setup.py sdist upload $(PYPI)
+	$(PYTHON) setup.py bdist_wheel upload $(PYPI)
 
 .PHONY: .git-no-changes
 .git-no-changes:
