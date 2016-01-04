@@ -30,7 +30,6 @@ def session(username=None, password=None):
 
 
 class LDSOrg(object):
-
     """Access LDS.org JSON web tools.
 
     Access LDS.org and the lds tools in JSON.  You can also use the session
@@ -58,11 +57,11 @@ class LDSOrg(object):
             self.signin(username, password, url)
 
     def __iter__(self):
-        """Iterate through the endpoints.  """
+        """Iterate through the endpoints."""
         return iter(self.endpoints)
 
     def __getitem__(self, key):
-        """Simplify endpoint usage.  """
+        """Simplify endpoint usage."""
         return self.endpoints[key]
 
     def __getattr__(self, key):
