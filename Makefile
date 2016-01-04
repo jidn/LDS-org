@@ -55,8 +55,8 @@ COVERAGE := $(BIN)/coverage
 ACTIVATE := $(BIN)/activate
 
 # Remove if you don't want pip to cache downloads
-PIP_CACHE_DIR := .cache
-PIP_CACHE := --download-cache $(PIP_CACHE_DIR)
+#PIP_CACHE_DIR := .cache
+#PIP_CACHE := --download-cache $(PIP_CACHE_DIR)
 
 # Flags for PHONY targets
 DEPENDS_CI := $(ENV)/.depends-ci
@@ -123,7 +123,7 @@ read: doc
 check: flake8 pep257
 
 PEP8_IGNORED := E501
-PEP257_IGNORED := D100
+PEP257_IGNORED := D100,D203
 
 .PHONY: pep8
 pep8: .depends-ci
