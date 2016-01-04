@@ -159,7 +159,8 @@ if __name__ == "__main__":  # pragma: no cover
 
     args = parser.parse_args()
     if args.ask:
-        username = raw_input('LDS.org username:')
+        asking = raw_input if sys.version_info.major < 3 else input
+        username = asking('LDS.org username:')
         password = getpass.getpass('LDS.org password:')
     else:
         username = os.getenv(ENV_USERNAME)
@@ -169,7 +170,7 @@ if __name__ == "__main__":  # pragma: no cover
 
     if not args.e:
         print(sorted(str(k) for k, v in lds.endpoints.items()
-                     if isinstance(v, basestring) and v.startswith('http')))
+                     if isinstance(v, str) and v.startswith('http')))
     else:
         if not (username and password):
             print("Either use --ask or set environment {0} and {1}"
