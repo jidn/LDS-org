@@ -171,11 +171,11 @@ if __name__ == "__main__":  # pragma: no cover
     if not args.e:
         print(sorted(str(k) for k, v in lds.endpoints.items()
                      if isinstance(v, str) and v.startswith('http')))
+    elif not (username and password):
+        print("Either use --ask or set environment {0} and {1}"
+                .format(ENV_USERNAME, ENV_PASSWORD))
+        sys.exit(1)
     else:
-        if not (username and password):
-            print("Either use --ask or set environment {0} and {1}"
-                  .format(ENV_USERNAME, ENV_PASSWORD))
-            sys.exit(1)
         lds.signin(username, password)
         rv = lds.get(args.e, *[int(_) for _ in args.arg])
         content_type = rv.headers['content-type']

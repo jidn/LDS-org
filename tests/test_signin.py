@@ -62,10 +62,15 @@ class TestSignin(object):
             assert 'wardName' in data[0]
 
     def test_get_as_url(self):
+        """Verify headers are loaded."""
         with lds_org.session() as lds:
             key = 'X-LDS-org'
             lds.headers.update({key: 'hello'})
             rv = lds.get('http://headers.jsontest.com')
+            if 503 == rv.status_code:
+                "Remote system is over quota"
+                pytest.xfail("jsontest.com is over quota. Try later.")
+            assert 200 == rv.status_code
             json = rv.json()
             assert key in json
 

@@ -1,221 +1,187 @@
-# Python settings
-ifndef TRAVIS
-	PYTHON_MAJOR := 2
-	PYTHON_MINOR := 7
-	ENV := env
-else
-	# Use the virtualenv provided by Travis
-	ENV = $(VIRTUAL_ENV)
-endif
-
-# Project settings
+# This helps with creating local virtual environments, requirements,
+# syntax checking, running tests, coverage and uploading packages to PyPI.
+# Homepage at https://github.com/jidn/python-Makefile
+# 
+# This also works with Travis CI
+#
 PROJECT := LDS-org
 PACKAGE := lds_org.py
-SOURCES := Makefile setup.py $(shell find $(PACKAGE) -name '*.py')
-EGG_INFO := $(subst -,_,$(PROJECT)).egg-info
+# Replace 'requirements.txt' with another filename if needed.
+REQUIRE_TXT := $(wildcard requirements.txt)
+# Directory with all the tests
+TESTDIR := tests
+TESTREQ_TXT := $(wildcard $(TESTDIR)/requirements.txt)
+##############################################################################
+# Python settings
+ifdef TRAVIS
+	ENV = $(VIRTUAL_ENV)
+else
+	PYTHON_VERSION := 2.7
+	ENV := env
+endif
 
 # System paths
-PLATFORM := $(shell python -c 'import sys; print(sys.platform)')
-ifneq ($(findstring win32, $(PLATFORM)), )
-	SYS_PYTHON_DIR := C:\\Python$(PYTHON_MAJOR)$(PYTHON_MINOR)
-	SYS_PYTHON := $(SYS_PYTHON_DIR)\\python.exe
-	SYS_VIRTUALENV := $(SYS_PYTHON_DIR)\\Scripts\\virtualenv.exe
-	# https://bugs.launchpad.net/virtualenv/+bug/449537
-	export TCL_LIBRARY=$(SYS_PYTHON_DIR)\\tcl\\tcl8.5
-else
-	SYS_PYTHON := python$(PYTHON_MAJOR)
-	ifdef PYTHON_MINOR
-		SYS_PYTHON := $(SYS_PYTHON).$(PYTHON_MINOR)
-	endif
-	SYS_VIRTUALENV := virtualenv
-endif
-
-# virtualenv paths
-ifneq ($(findstring win32, $(PLATFORM)), )
-	BIN := $(ENV)/Scripts
-	OPEN := cmd /c start
-else
-	BIN := $(ENV)/bin
-	ifneq ($(findstring cygwin, $(PLATFORM)), )
-		OPEN := cygstart
-	else
-		OPEN := open
-	endif
-endif
+BIN := $(ENV)/bin
+OPEN := xdg-open
+SYS_VIRTUALENV := virtualenv
+SYS_PYTHON := python$(PYTHON_VERSION)
 
 # virtualenv executables
-PYTHON := $(BIN)/python
 PIP := $(BIN)/pip
-PEP8 := $(BIN)/pep8
+PYTHON := $(BIN)/python
 FLAKE8 := $(BIN)/flake8
-PEP8RADIUS := $(BIN)/pep8radius
 PEP257 := $(BIN)/pep257
-PYTEST := $(BIN)/py.test
 COVERAGE := $(BIN)/coverage
-ACTIVATE := $(BIN)/activate
+TESTRUN := $(BIN)/py.test
 
-# Remove if you don't want pip to cache downloads
-#PIP_CACHE_DIR := .cache
-#PIP_CACHE := --download-cache $(PIP_CACHE_DIR)
+# Project settings
+SETUP_PY := $(wildcard setup.py)
+SOURCES := $(shell find $(PACKAGE) -name '*.py')
+TESTS :=   $(shell find $(TESTDIR) -name '*.py')
+EGG_INFO := $(subst -,_,$(PROJECT)).egg-info
 
-# Flags for PHONY targets
-DEPENDS_CI := $(ENV)/.depends-ci
-DEPENDS_DEV := $(ENV)/.depends-dev
-ALL := $(ENV)/.all
+# Flags for environment/tools
+FLAG_CI := $(ENV)/.depends-ci
+FLAG_DEV := $(ENV)/.depends-dev
+LOG_REQ := $(ENV)/.requirements.txt
+LOG_TEST_REQ := $(ENV)/.requirements-test.txt
 
 # Main Targets ###############################################################
+.PHONY: all env ci help
+all: $(ENV)/.default-target
+$(ENV)/.default-target: env $(SETUP_PY) $(SOURCES)
+	$(MAKE) -s test
+	@touch $@
 
-.PHONY: all
-all: depends $(ALL)
-$(ALL): $(SOURCES)
-	$(MAKE) check
-	touch $(ALL)  # flag to indicate all setup steps were successful
-
-# Targets to run on Travis
-.PHONY: ci
+# Target for Travis
 ci: test
 
-# Development Installation ###################################################
+help:
+	@echo "env        Create virtualenv and install requirements"
+	@echo "check      Run style checks"
+	@echo "test *     Run py.test with arguments on '$(TESTDIR)'"
+	@echo "pytest *   Run py.test -x --pdb with arguments on '$(TESTDIR)'"
+	@echo "coverage   Get coverage information"
+	@echo "upload     Upload package to PyPI"
+	@echo "clean clean-all  Clean up and clean up removing virtualenv"
 
-.PHONY: env
-env: .virtualenv $(EGG_INFO)
-$(EGG_INFO): Makefile setup.py
-	$(PIP) install -e .[paging,docs]
-	touch $(EGG_INFO)  # flag to indicate package is installed
-
-.PHONY: .virtualenv
-.virtualenv: $(PIP)
+# Environment Installation ###################################################
+env: $(PIP) $(LOG_REQ) $(ENV)/.setup.py
 $(PIP):
 	$(SYS_VIRTUALENV) --python $(SYS_PYTHON) $(ENV)
+	@$(MAKE) -s $(ENV)/.setup.py
 
-.PHONY: depends
-depends: .depends-ci .depends-dev
+$(LOG_REQ): $(REQUIRE_TXT)
+ifneq ($(REQUIRE_TXT),)
+	$(PIP) install --upgrade -r $(REQUIRE_TXT) | tee -a $(LOG_REQ)
+	# env requirements hook
+	$(info Upgrade or install $(REQUIRE_TXT) complete.)
+endif
+	@touch $@
 
-.PHONY: .depends-ci
-.depends-ci: env Makefile $(DEPENDS_CI)
-$(DEPENDS_CI): Makefile 
-	$(PIP) install $(PIP_CACHE) --upgrade flake8 pep257
-	touch $(DEPENDS_CI)  # flag to indicate dependencies are installed
+$(ENV)/.setup.py: $(SETUP_PY)
+ifneq ($(SETUP_PY),)
+	$(PIP) install -e .
+endif
+	@touch $@
 
-.PHONY: .depends-dev
-.depends-dev: env Makefile $(DEPENDS_DEV)
-$(DEPENDS_DEV): Makefile 
-	$(PIP) install $(PIP_CACHE) --upgrade pep8radius pygments wheel
-	touch $(DEPENDS_DEV)  # flag to indicate dependencies are installed
+environ:
+ifneq ($(LDSORG_USERNAME),)
+	@echo "Environment username: $$LDSORG_USERNAME"
+else
+	@echo "LDSORG_USERNAME is missing. See 'Secure your username and password' in README"
+endif
 
-# Documentation ##############################################################
+### Static Analysis & Travis CI ##############################################.PHONY: check flake8 pep257
 
-.PHONY: doc-old
-doc-old: .depends-dev
-	cd docs; $(MAKE) html
-
-.PHONY: doc
-doc: .depends-dev
-	. $(ACTIVATE); cd docs; $(MAKE) html; 
-
-.PHONY: read
-read: doc
-	$(OPEN) docs/_build/html/index.html
-
-# Static Analysis ############################################################
-
-.PHONY: check
+PEP8_IGNORED := E501,E123,D104,D203
 check: flake8 pep257
 
-PEP8_IGNORED := E501
-PEP257_IGNORED := D100,D203
+$(FLAG_CI): env
+	$(PIP) install --upgrade flake8 pep257
+	@touch $@  # flag to indicate dependencies are installed
 
-.PHONY: pep8
-pep8: .depends-ci
-	$(PEP8) $(PACKAGE) --ignore=$(PEP8_IGNORED)
+$(FLAG_DEV): env
+	$(PIP) install --upgrade wheel  # pygments wheel
+	@touch $@  # flag to indicate dependencies are installed
 
-.PHONY: flake8
-flake8: .depends-ci
-	$(FLAKE8) $(PACKAGE) --ignore=$(PEP8_IGNORED)
+flake8: $(FLAG_CI)
+	$(FLAKE8) $(or $(PACKAGE), $(SOURCES)) $(TESTDIR) --ignore=$(PEP8_IGNORED)
 
-.PHONY: pep257
-pep257: .depends-ci
-	$(PEP257) $(PACKAGE) --ignore=$(PEP257_IGNORED)
+pep257: $(FLAG_CI)
+	$(PEP257) $(or $(PACKAGE), $(SOURCES)) $(TESTDIR) --ignore=$(PEP8_IGNORED)
 
-.PHONY: fix
-fix: .depends-dev
-	$(PEP8RADIUS) --docformatter --in-place
+### Testing ##################################################################
+.PHONY: test pdb coverage
 
-# Testing ####################################################################
+TEST_COVERAGE := --cov $(PACKAGE) \
+				 --cov-report term-missing \
+				 --cov-report html 
 
-PYTEST_OPTS := --cov $(PACKAGE) \
-			   --cov-report term-missing \
-			   --cov-report html
+pytest: env $(LOG_TEST_REQ)
+	$(TESTRUN) $(TESTDIR) -x --pdb $(filter-out $@,$(MAKECMDGOALS))
 
-.PHONY: test
-test: .depends-ci
-	$(PYTEST) testing.py $(PYTEST_OPTS)
+test: env $(LOG_TEST_REQ)
+	$(TESTRUN) $(TESTDIR) --last-failed $(filter-out $@,$(MAKECMDGOALS))
 
-.PHONY: htmlcov
-htmlcov: test
+$(LOG_TEST_REQ): $(TESTREQ_TXT)
+ifneq ($(TESTREQ_TXT),)
+	$(PIP) install --upgrade -r $(TESTREQ_TXT) | tee -a $(LOG_TEST_REQ)
+	@echo "Testing requirements installed."
+endif
+	@touch $@
+
+coverage:
+	@$(MAKE) test $(TEST_COVERAGE)
 	$(COVERAGE) html
 	$(OPEN) htmlcov/index.html
 
 # Cleanup ####################################################################
+.PHONY: clean clean-env clean-all .clean-build .clean-test .clean-dist
 
-.PHONY: clean
-clean: .clean-dist .clean-test .clean-doc .clean-build
-	rm -rf $(ALL)
+clean: .clean-dist .clean-test .clean-build
+	@rm -rf $(ALL)
 
-.PHONY: clean-env
 clean-env: clean
-	rm -rf $(ENV)
+	@rm -rf $(ENV)
 
-.PHONY: clean-all
-clean-all: clean clean-env .clean-cache
+clean-all: clean clean-env
 
-.PHONY: .clean-build
 .clean-build:
-	find -name '*.pyc' -not -path "./env" -delete
-	find -name $(PACKAGE)c -delete
-	find -name '__pycache__' -delete
-	rm -rf $(EGG_INFO)
+#	@find -name $(PACKAGE).c -delete
+	@find $(PACKAGE) -name '*.pyc' -delete
+	@find $(TESTDIR) -name '*.pyc' -delete
+	@find $(PACKAGE) -name '__pycache__' -delete
+	@find $(TESTDIR) -name '__pycache__' -delete
+	@rm -rf $(EGG_INFO)
+	@rm -rf __pycache__
 
-.PHONY: .clean-doc
-.clean-doc:
-	rm -rf README.rst apidocs docs/*.html docs/*.png
-
-.PHONY: .clean-test
 .clean-test:
-	rm -rf .coverage
+	@rm -rf .coverage
 
-.PHONY: .clean-dist
 .clean-dist:
-	rm -rf dist build
-
-.PHONY: .clean-cache
-.clean-cache:
-	rm -rf $(PIP_CACHE_DIR)
+	@rm -rf dist build
 
 # Release ####################################################################
+# For more information on creating packages for PyPI see the writeup at
+# http://peterdowns.com/posts/first-time-with-pypi.html
+.PHONY: authors register dist upload .git-no-changes
 
-.PHONY: authors
 authors:
 	echo "Authors\n=======\n\nA huge thanks to all of our contributors:\n\n" > AUTHORS.md
 	git log --raw | grep "^Author: " | cut -d ' ' -f2- | cut -d '<' -f1 | sed 's/^/- /' | sort | uniq >> AUTHORS.md
 
-PYPI := -r pypi
-
-.PHONY: register
 register: 
-	$(PYTHON) setup.py register $(PYPI)
+	$(PYTHON) setup.py register -r pypi
 
-.PHONY: dist
 dist: test
 	$(PYTHON) setup.py sdist
 	$(PYTHON) setup.py bdist_wheel
 
-.PHONY: upload
 upload: .git-no-changes register
-	$(PYTHON) setup.py sdist upload $(PYPI)
-	$(PYTHON) setup.py bdist_wheel upload $(PYPI)
+	$(PYTHON) setup.py sdist upload -r pypi
+	$(PYTHON) setup.py bdist_wheel upload -r pypi
 
-.PHONY: .git-no-changes
 .git-no-changes:
 	@if git diff --name-only --exit-code;         \
 	then                                          \
@@ -227,15 +193,14 @@ upload: .git-no-changes register
 	fi;
 
 # System Installation ########################################################
+.PHONY: develop install download
+# Is this section really needed?
 
-.PHONY: develop
 develop:
-	$(SYS_PYTHON) setup.py develop
+	$(PYTHON) setup.py develop
 
-.PHONY: install
 install:
-	$(SYS_PYTHON) setup.py install
+	$(PYTHON) setup.py install
 
-.PHONY: download
 download:
-	pip install $(PROJECT)
+	$(PIP) install $(PROJECT)
