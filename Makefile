@@ -132,7 +132,7 @@ endif
 	@touch $@
 
 coverage:
-	@$(MAKE) test $(TEST_COVERAGE)
+	$(TESTRUN) -x $(TESTDIR) $(TEST_COVERAGE)
 	$(COVERAGE) html
 	$(OPEN) htmlcov/index.html
 
