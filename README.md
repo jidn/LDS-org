@@ -20,8 +20,8 @@ pip install lds-org
 Using the command line, see the available endpoints and your current ID.
 
 ```sh
-python -m lds-org
-python -m lds-org -e current-user-id
+python -m lds_org
+python -m lds_org -e current-user-id
 ```
 
 Now lets get the same in python.
