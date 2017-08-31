@@ -184,14 +184,14 @@ if __name__ == "__main__":  # pragma: no cover
 
     username = os.getenv(ENV_USERNAME)
     password = os.getenv(ENV_PASSWORD)
-    if username is None or password is None:
+    if not all((username, password)):
         logger.info("Asking for username and password.")
         asking = raw_input if sys.version_info.major < 3 else input
         username = asking('LDS.org username:')
         password = getpass.getpass('LDS.org password:')
-        if username is None or password is None:
+        if not all((username, password)):
             print("Give username and password at input or set environment"
-                  " %s and %s." %s (ENV_USERNAME, ENV_PASSWORD))
+                  " %s and %s." % (ENV_USERNAME, ENV_PASSWORD))
             sys.exit(1)
 
     lds = LDSOrg()
