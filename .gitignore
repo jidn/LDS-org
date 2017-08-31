@@ -1,8 +1,8 @@
 *.swp
 *.pyc
-.cache
-.coverage
+.*
 env
+environ.sh
 htmlcov
 build
 dist
