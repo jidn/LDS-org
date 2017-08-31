@@ -3,6 +3,7 @@ import datetime
 import logging
 from io import StringIO
 import pytest
+import context
 import lds_org
 
 
@@ -17,7 +18,7 @@ class TestWithoutSignin(object):
     def test_signin_fails(object):
         with pytest.raises(ValueError) as err:
             lds_org.LDSOrg('CainTheCursed', 'sonofadam', signin=True)
-        assert 'password failed' in err.value.message
+        assert str(err.value).endswith('password failed')
 
     def test_environment_vars(self):
         username = os.getenv(lds_org.ENV_USERNAME)
@@ -78,7 +79,7 @@ class TestSignin(object):
         with lds_org.session() as lds:
             with pytest.raises(ValueError) as err:
                 lds.get('cal2x-event')
-            assert 'needs arguments' in err.value.message
+            assert 'needs arguments' in str(err.value)
 
     def test_endpoint_substitution(self):
         """Get the most recently completed calendar event.
@@ -98,7 +99,7 @@ class TestSignin(object):
             assert rv.status_code == 200
             assert rv.json()['id'] == event['id']
 
-    def test_logging(self):
+    def te_st_logging(self):
         """Checking the logger
         """
         pseudo = StringIO()
