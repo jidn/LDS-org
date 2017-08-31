@@ -99,9 +99,11 @@ class LDSOrg(object):
         logger.debug(u'%x SIGNIN success!', id(self.session))
 
         # Get the persons unit number, needed for other endponts
-        r = self.get('current-user-unit')
-        assert r.status_code == 200
-        self.unitNo = r.json()['message']
+        rv = self.get('current-user-unit')
+        assert rv.status_code == 200
+        logger.debug(u'%x Headers %s', id(self.session),
+                     pprint.pformat(rv.headers))
+        self.unitNo = rv.json()['message']
 
     def get(self, eurl, *args, **kwargs):
         """Get an HTTP response from endpoint or URL.
@@ -133,10 +135,20 @@ class LDSOrg(object):
                 if args:
                     url = url % args
                 else:
-                    raise ValueError("endpoint {} needs arguments".format(url))
+                    raise ValueError("endpoint %s needs arguments" % url)
             eurl = url
         logger.debug(u'%x GET %s', id(self.session), eurl)
-        return self.session.get(eurl, **kwargs)
+        rv = self.session.get(eurl, **kwargs)
+        logger.debug('Request Headers %s',
+                     pprint.pformat(dict(rv.request.headers)))
+        try:
+            length = len(rv.raw)
+        except TypeError:
+            length = 0
+        logger.debug(u'%x response=%s length=%d',
+                     id(self.session), str(rv), length)
+        logger.debug('Response Headers %s', pprint.pformat(dict(rv.headers)))
+        return rv
 
     def _get_endpoints(self):
         """Get the currently supported endpoints provided by LDS Tools.
@@ -147,48 +159,57 @@ class LDSOrg(object):
         logger.debug(u"%x Get endpoints", id(self.session))
         rv = self.session.get(CONFIG_URL)
         assert rv.status_code == 200
-        logger.debug(u'%x Got endponts', id(self.session))
         self.endpoints = rv.json()
+        logger.debug(u'%x Got %d endponts', id(self.session),
+                     len(self.endpoints))
 
 
 if __name__ == "__main__":  # pragma: no cover
     import sys
     import argparse
     import getpass
-    import pprint
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', metavar='ENDPOINT', help="Endpoint to pretty print")
-    parser.add_argument('arg', nargs='*', help='Arguments for endpoint URLs')
-    parser.add_argument('--ask', action='store_true',
-                        help='ask for username/password')
-
+    parser.add_argument('-e', metavar='ENDPOINT/URL',
+                        help="Endpoint to pretty print")
+    parser.add_argument('arg', nargs='*',
+                        help='Arguments for endpoint URLs')
+    parser.add_argument('--logger', help='Filename for log')
     args = parser.parse_args()
-    if args.ask:
+
+    if args.logger:
+        h = logging.FileHandler(args.logger, 'wt')
+        logger.addHandler(h)
+        logger.setLevel(logging.DEBUG)
+
+    username = os.getenv(ENV_USERNAME)
+    password = os.getenv(ENV_PASSWORD)
+    if username is None or password is None:
+        logger.info("Asking for username and password.")
         asking = raw_input if sys.version_info.major < 3 else input
         username = asking('LDS.org username:')
         password = getpass.getpass('LDS.org password:')
-    else:
-        username = os.getenv(ENV_USERNAME)
-        password = os.getenv(ENV_PASSWORD)
+        if username is None or password is None:
+            print("Give username and password at input or set environment"
+                  " %s and %s." %s (ENV_USERNAME, ENV_PASSWORD))
+            sys.exit(1)
 
     lds = LDSOrg()
 
     if not args.e:
-        print(sorted(str(k) for k, v in lds.endpoints.items()
+        # pprint available endoints
+        pprint.pprint(sorted(str(k) for k, v in lds.endpoints.items()
                      if isinstance(v, str) and v.startswith('http')))
-    elif not (username and password):
-        print("Either use --ask or set environment {0} and {1}"
-                .format(ENV_USERNAME, ENV_PASSWORD))
-        sys.exit(1)
     else:
         lds.signin(username, password)
         rv = lds.get(args.e, *[int(_) for _ in args.arg])
+        if rv.status_code != 200:
+            print("Error: %d %s" % (rv.status_code, str(rv)),
+                  file=sys.stderr)
         content_type = rv.headers['content-type']
         if 'html' in content_type:
-            print(rv.url)
-            print(rv.text.encode('utf-8'))
+            print("<!-- %s -->" % str(rv))
+            print("<!-- %s -->" % rv.url)
+            print(rv.text)
         elif 'json' in content_type:
             pprint.pprint(rv.json())
-        if rv.status_code != 200:
-            print("Error: %d" % rv.status_code)
