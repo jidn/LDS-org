@@ -1,15 +1,15 @@
 import os
-from logging import getLogger
+import logging
+import pprint
 import contextlib
 import requests
 
+__version__ = '0.1.1'
 CONFIG_URL = "https://tech.lds.org/mobile/ldstools/config.json"
 ENV_USERNAME = 'LDSORG_USERNAME'
 ENV_PASSWORD = 'LDSORG_PASSWORD'
 
-__version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
-
-logger = getLogger("lds-org")
+logger = logging.getLogger("lds-org")
 
 
 @contextlib.contextmanager

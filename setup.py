@@ -2,7 +2,11 @@
 import os
 from setuptools import setup, find_packages
 
-__version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
+BASEDIR = os.path.dirname(__file__)
+for _ in open(os.path.join(BASEDIR, 'lds_org.py')).readlines():
+    if _.startswith('__version__'):
+        exec(_.strip(), None)
+        break
 
 requirements = [
     'requests',
