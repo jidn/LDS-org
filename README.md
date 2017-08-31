@@ -20,8 +20,8 @@ pip install lds-org
 Using the command line, see the available endpoints and your current ID.
 
 ```sh
-python -m lds-org --ask
-python -m lds-org --ask -e current-user-id
+python -m lds-org
+python -m lds-org -e current-user-id
 ```
 
 Now lets get the same in python.
@@ -74,18 +74,18 @@ password.  In \*nix based systems, you can add the following to your
 .bashrc or its equivelent.
 
 ```sh
-LDSORG_USERNAME=username; export LDSORG_USERNAME
-LDSORG_PASSWORD="password"; export LDSORG_PASSWORD
+export LDSORG_USERNAME=username
+export LDSORG_PASSWORD="password"
 ```
 
 Personally, I create a seperate file to fix the command line environment.
-I take the above and put it in a file 'ldsorg-password.txt'.  From the
+I take the above and put it in a file 'ldsorg-password.sh'.  From the
 command line, type the following and you should see your LDS.org username.
 
 ```sh
-source ldsorg-password.txt
+source ldsorg-password.sh
 echo $LDSORG_USERNAME
 ```
 
-Once this is done, you no longer need to either use the '--ask' parameter
-or specify a username/password in your code.
+Once this is done, you no longer need to either enter your credentials from
+the command line or specify a username/password in your code.
