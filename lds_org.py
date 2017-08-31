@@ -204,8 +204,7 @@ if __name__ == "__main__":  # pragma: no cover
         lds.signin(username, password)
         rv = lds.get(args.e, *[int(_) for _ in args.arg])
         if rv.status_code != 200:
-            print("Error: %d %s" % (rv.status_code, str(rv)),
-                  file=sys.stderr)
+            print("Error: %d %s" % (rv.status_code, str(rv)))
         content_type = rv.headers['content-type']
         if 'html' in content_type:
             print("<!-- %s -->" % str(rv))
