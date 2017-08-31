@@ -23,8 +23,7 @@ class TestWithoutSignin(object):
     def test_environment_vars(self):
         username = os.getenv(lds_org.ENV_USERNAME)
         password = os.getenv(lds_org.ENV_PASSWORD)
-        self.has_environ = username is not None and password is not None
-        assert self.has_environ
+        assert all((username, password))
 
 
 @pytest.mark.xfail(not os.getenv(lds_org.ENV_USERNAME) or
