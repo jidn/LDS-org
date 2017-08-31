@@ -40,11 +40,12 @@ class LDSOrg(object):
                  url=None):
         """Get endpoints and possibly signin.
 
-        :param username: LDS.org username
-        :param password: LDS.org password
-        :param signin: Sign in using environment variables when not
-                     supplying the username and password
-        :param url: override the current signin URL when it changes
+        Args:
+            username (str): LDS.org username
+            password (str): LDS.org password
+            signin (bool): Sign in using environment variables when not
+                supplying the username and password
+            url (str): override the current signin URL when it changes
         """
         self.session = requests.Session()
         self.unitNo = ''
@@ -75,12 +76,13 @@ class LDSOrg(object):
     def signin(self, username=None, password=None, url=None):
         """Sign in to LDS.org using a member username and password.
 
-        :param username: LDS.org username
-        :param password: LDS.org password
-        :param url: Override the default endpoint url
-
-        To keep these values out of code, you can use the following
+        To keep username and password out of code, use the following
         environment variables: LDSORG_USERNAME AND LDSORG_PASSWORD
+
+        Args:
+            username (str or None): LDS.org username or use environ
+            password (str or None): LDS.org password or use environ
+            url (str): Override the default endpoint url
         """
         if username is None:
             username = os.getenv(ENV_USERNAME)
@@ -110,10 +112,14 @@ class LDSOrg(object):
         of the logged in user.  You can use the ward_No parameter or fix
         it yourself if this is not the correct behaviour.
 
-        :param eurl: an endpoint or URL
-        :param args: substituation for %* in the endpoint
-        :param ward_No: for use with an endpoint
-        :param kwargs: paramaters for :meth:`requests.Session.get`
+        Args:
+            eurl (str): an endpoint or URL
+            args (tuple): substituation for '%*' in the endpoint
+                ward_No: for use with an endpoint
+            kwargs (dict): paramaters for :meth:`requests.Session.get`
+
+        Returns:
+            :class:`requests.Response`
         """
         try:
             url = self.endpoints[eurl]
