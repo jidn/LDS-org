@@ -1,8 +1,9 @@
 # LDS-org
 
-Most times, I can quickly jump on LDS.org and get the exact information
-I need.  However, there are those repeated tasks I don't really want to
-to run time and time again.  Hmm... sounds like a job for a computer.
+Most times, I can quickly jump the LDS.org website and get the exact
+information I need.  However, there are those repeated tasks I don't
+really want to to run time and time again.  Hmm... sounds like a job
+for a computer.
 
 In my current role as Clerk, reports and information are my life.  I
 want to make it easier to get that information.
@@ -33,33 +34,68 @@ lds = lds_org.LDSOrg()
 lds.signin(username, password)
 rv = lds.get('current-user-id')
 print(rv.json())
-print(sorted(k for k, v in lds.endpoints.items()
-      if isinstance(v, basestring) and v.startswith('http')))
 ```
 
-### Working endpoints
+To make conneciton a bit easier, we can create a session for repeated use.
 
-There are some endpoints, while published, don't appear to be working. Here is a list of working endpoint providing JSON.  See <https://tech.lds.org/wiki/LDS_Tools_Web_Services> for more information.
+```python
+with lds_org.session() as lds:
+    rv = lds.get(some_context_of_interest)
+    ...
+```
 
-* current-user-detail
-* current-user-id
-* current-user-unit
-* current-user-units
-* leader-access
-* member-assignments
-* organization-list-url
-* stake-leadership
-* stake-units
-* unit-leadership
-* unit-leadership-new
-* unit-members-and-callings
-* unit-members-and-callings-v2
-* unit-membership
-* cal2x-event
-* cal2x-events
+## Endpoints
 
-Calendar requests appear to be working but the descriptions at  <https://tech.lds.org/wiki/LDS_Tools_Web_Services> appear to be out of date.  For an example see the testing suite.
+Endpoints are URLs to resources, most of which provide JSON.
+The list of endpoints are found at <https://tech.lds.org/mobile/ldstools/config.json> and are somewhat documented at <https://tech.lds.org/wiki/LDS_Tools_Web_Services>.
 
+Some endpoints need additional data, usually the unit number which appears as `%@` in the endpoints found at [tech.lds.org](https://tech.lds.org/mobile/ldstools/config.json).
+However, tech.lds.org uses it for other items as well.
+I alter the URLs for better understanding by replace `%@` with `{unit}` and `{member}` as I currently understand the the endpoints.
+
+The module will automatically replace `{unit}` with the authorized users unit number if it is not provided.  You can also provide a unit number for a different unit in a stake.
+
+For example, get the number of household in the stake by unit.
+
+```python
+Unit = collections.namedtuple('Unit', 'name number')
+with lds_org.session() as lds:
+    rv = lds.get('stake-units')
+    data = rv.json()
+    units = sorted(Unit(_['wardName'], _['wardUnitNo'])
+                   for _ in data)
+    for unit in units:
+        rv = lds.get('unit-membership', unit=unit.number)
+        print('{:4} [unit {}]{}'.format(len(rv.json()), unit.number, unit.name))
+```
+
+You can also pass in `unit` and `member` information on the command line. See the help at
+
+```sh
+python -m lds_org -h
+```
+
+### Photos
+
+The `photo-url` endpoint needs two arguments, an member ID and the type of photo.  The photo type is either 'household' or 'individual'.  See [LDS Tools Web Services](https://tech.lds.org/wiki/LDS_Tools_Web_Services#Signin_services) for more information.
+
+```python
+from pprint import pprint
+
+# Get my personal picture
+with lds_org.session() as lds:
+    rv = lds.get('current-user-id')
+    my_id = rv.json()
+    rv = lds.get('photo-url', 'individual', member=my_id)
+    pprint(rv.json())
+```
+
+If you know the member ID (use endpoint `current-user-id` for yourself), you can do it from the command line as well with
+
+```sh
+python -m lds_org -e current-user-id
+python -m lds_org -e photo-url -m memberId individual
+```
 
 ### Secure your username and password
 

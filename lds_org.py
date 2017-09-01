@@ -1,15 +1,20 @@
 import os
+import contextlib
 import logging
 import pprint
-import contextlib
 import requests
 
-__version__ = '0.1.1'
+__version__ = '0.2.0a1'
 CONFIG_URL = "https://tech.lds.org/mobile/ldstools/config.json"
 ENV_USERNAME = 'LDSORG_USERNAME'
 ENV_PASSWORD = 'LDSORG_PASSWORD'
 
 logger = logging.getLogger("lds-org")
+
+
+class ExceptionLDS(Exception):
+    """Exceptions for module logic"""
+    pass
 
 
 @contextlib.contextmanager
@@ -20,13 +25,14 @@ def session(username=None, password=None):
     ```
     with session() as lds:
         rv = lds.get(....)
+        ....
     ```
     """
     lds = LDSOrg(username, password, signin=True)
     logger.debug(u"%x yielding start", id(lds.session))
     yield lds
     logger.debug(u"%x yielding stop", id(lds.session))
-    lds.get(lds['signout-url'])
+    lds.get('signout-url')
 
 
 class LDSOrg(object):
@@ -50,7 +56,6 @@ class LDSOrg(object):
         self.session = requests.Session()
         self.unitNo = ''
 
-        logger.debug(u'%x __init__', id(self.session))
         self._get_endpoints()
         if url is None:
             url = self['auth-url']
@@ -70,7 +75,7 @@ class LDSOrg(object):
 
         Now we can use the class instance just as we would a session.
         """
-        logger.debug(u'%x getattr %s', id(self.session), key)
+        self._debug(u'getattr %s', key)
         return getattr(self.session, key)
 
     def signin(self, username=None, password=None, url=None):
@@ -83,6 +88,12 @@ class LDSOrg(object):
             username (str or None): LDS.org username or use environ
             password (str or None): LDS.org password or use environ
             url (str): Override the default endpoint url
+
+        Exceptions:
+            ExceptionLDS
+
+        Side effects:
+            self.signedIn = True
         """
         if username is None:
             username = os.getenv(ENV_USERNAME)
@@ -91,64 +102,109 @@ class LDSOrg(object):
 
         if url is None:
             url = self['auth-url']
-        logger.debug(u'%x SIGNIN %s %s', id(self.session), username, url)
+        self._debug(u'SIGNIN %s %s', username, url)
         rv = self.session.post(url, data={'username': username,
                                           'password': password})
         if 'etag' not in rv.headers:
-            raise ValueError('Username/password failed')
-        logger.debug(u'%x SIGNIN success!', id(self.session))
+            raise ExceptionLDS('Username/password failed')
+        self._debug(u'SIGNIN success!')
+        self.signedIn = True
 
-        # Get the persons unit number, needed for other endponts
+    def _get_unit(self):
+        """Get unit number of currently logged in user.
+
+        Returns: (str) unit number
+
+        Side Effect:
+            adds attribute 'unitNo' to object
+        """
+
+        self._debug(u'Silently get unit number')
         rv = self.get('current-user-unit')
         assert rv.status_code == 200
-        logger.debug(u'%x Headers %s', id(self.session),
-                     pprint.pformat(rv.headers))
+        self._debug(u'Headers %s', pprint.pformat(rv.headers))
         self.unitNo = rv.json()['message']
+        self._debug(u'unit number = %s', self.unitNo)
+        return self.unitNo
 
-    def get(self, eurl, *args, **kwargs):
+    def get(self, endpoint, *args, **kwargs):
         """Get an HTTP response from endpoint or URL.
 
         Some endpoints need substitution to create a valid URL. Usually,
-        this appears as %@ in the endpoint.  By default this method will
-        replace all occurances of %@ in the endpoint with the ward number
-        of the logged in user.  You can use the ward_No parameter or fix
-        it yourself if this is not the correct behaviour.
+        this appears as "{}" in the endpoint.  By default this method will
+        replace any "{unit}" with the authorized users unit number if
+        not given.
 
         Args:
-            eurl (str): an endpoint or URL
-            args (tuple): substituation for '%*' in the endpoint
-                ward_No: for use with an endpoint
-            kwargs (dict): paramaters for :meth:`requests.Session.get`
+            endpoint (str): endpoint or URL
+            args (tuple): substituation for any '{}' in the endpoint
+            kwargs (dict): unit, paramaters for :meth:`requests.Session.get`
+                unit: unit number
+                member: member number
 
         Returns:
             :class:`requests.Response`
+
+        Exceptions:
+            ExceptionLDS for unknown endpoint
+            KeyError for missing endpoint keyword arguments
         """
+        self._debug(u'GET %s', endpoint)
         try:
-            url = self.endpoints[eurl]
-            logger.debug(u'%x GET %s', id(self.session), eurl)
+            url = self.endpoints[endpoint]
         except KeyError:
-            pass
-        else:
-            # Fix any substitution as needed
-            url = url.replace('%@', kwargs.pop('ward_No', self.unitNo))
-            if '%' in url:
-                if args:
-                    url = url % args
-                else:
-                    raise ValueError("endpoint %s needs arguments" % url)
-            eurl = url
-        logger.debug(u'%x GET %s', id(self.session), eurl)
-        rv = self.session.get(eurl, **kwargs)
-        logger.debug('Request Headers %s',
-                     pprint.pformat(dict(rv.request.headers)))
+            if endpoint.startswith('http'):
+                url = endpoint
+            else:
+                raise ExceptionLDS("Unknown endpoint", endpoint)
+
+        # Get any unit or member information
+        unit_member = dict()
+        for key in ('member', 'unit'):
+            try:
+                v = kwargs.pop(key)
+                if v is not None:
+                    unit_member[key] = v
+
+            except KeyError:
+                pass
+        if 'unit' not in unit_member and self.unitNo:
+            unit_member['unit'] = self.unitNo
+        # Do any substitution in the endpoint
+        try:
+            url = url.format(*args, **unit_member)
+        except IndexError:
+            self._error(u"missing positional args %s", args)
+            raise ExceptionLDS("Missing positional arguments",
+                               url, args, unit_member)
+        except KeyError as err:
+            if 'unit' in err.args:
+                self._debug(u"'unit' needed. Get it and retry.")
+                unit_member['unit'] = self._get_unit()
+                kwargs.update(unit_member)
+                return self.get(endpoint, *args, **kwargs)
+            self._error(u"missing key words %s", (err.args))
+            raise
+
+        self._debug('GET %s', url)
+        rv = self.session.get(url, **kwargs)
+        self._debug('Request Headers %s',
+                    pprint.pformat(dict(rv.request.headers)))
         try:
             length = len(rv.raw)
         except TypeError:
             length = 0
-        logger.debug(u'%x response=%s length=%d',
-                     id(self.session), str(rv), length)
-        logger.debug('Response Headers %s', pprint.pformat(dict(rv.headers)))
+        self._debug(u'response=%s length=%d', str(rv), length)
+        self._debug('Response Headers %s', pprint.pformat(dict(rv.headers)))
         return rv
+
+    def _debug(self, msg, *args):
+        """Wrap logging with session number"""
+        return logger.debug(u'%x ' + msg, id(self.session), *args)
+
+    def _error(self, msg, *args):
+        """Wrap logging with session number"""
+        return logger.error(u'%x ' + msg, id(self.session), *args)
 
     def _get_endpoints(self):
         """Get the currently supported endpoints provided by LDS Tools.
@@ -156,12 +212,31 @@ class LDSOrg(object):
         See https://tech.lds.org/wiki/LDS_Tools_Web_Services
         """
         # Get the endpoints
-        logger.debug(u"%x Get endpoints", id(self.session))
+        self._debug(u"Get endpoints")
         rv = self.session.get(CONFIG_URL)
         assert rv.status_code == 200
         self.endpoints = rv.json()
-        logger.debug(u'%x Got %d endponts', id(self.session),
-                     len(self.endpoints))
+        self._debug(u'Got %d endponts', len(self.endpoints))
+        ep = self.endpoints
+        for k, v in ep.items():
+            if not v.startswith('http'):
+                continue
+            # Fix unit parameter
+            if 'unit/%@' in v:
+                v = ep[k] = v.replace('unit/%@', 'unit/{unit}')
+            elif 'unitNumber=%@' in v:
+                v = ep[k] = v.replace('=%@', '={unit}')
+            elif k.startswith('unit-') and v.endswith('/%@'):
+                v = ep[k] = v[:-2] + '{unit}'
+            # Fix member parameter
+            if 'membership-record/%@' in v:
+                v = ep[k] = v.replace('%@', '{member}')
+            elif 'photo/url/%@' in v:
+                v = ep[k] = v.replace('url/%@', 'url/{member}')
+            # Fix misc
+            for pattern in ('%@', '%d', '%.0f'):
+                if pattern in v:
+                    v = ep[k] = v.replace(pattern, '{}')
 
 
 if __name__ == "__main__":  # pragma: no cover
@@ -170,15 +245,22 @@ if __name__ == "__main__":  # pragma: no cover
     import getpass
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', metavar='ENDPOINT/URL',
+    parser.add_argument('-e', metavar='ENDPOINT',
                         help="Endpoint to pretty print")
-    parser.add_argument('arg', nargs='*',
+    parser.add_argument('-m', metavar='MEMBER', default=None,
+                        help="Member number")
+    parser.add_argument('-u', metavar='UNIT', default=None,
+                        help='Unit number other than authorized users')
+    parser.add_argument('args', nargs='*',
                         help='Arguments for endpoint URLs')
-    parser.add_argument('--logger', help='Filename for log')
+    parser.add_argument('--log', help='Filename for log, - for stdout')
     args = parser.parse_args()
 
-    if args.logger:
-        h = logging.FileHandler(args.logger, 'wt')
+    if args.log:
+        if args.log == '-':
+            h = logging.StreamHandler(sys.stdout)
+        else:
+            h = logging.FileHandler(args.log, 'wt')
         logger.addHandler(h)
         logger.setLevel(logging.DEBUG)
 
@@ -198,11 +280,12 @@ if __name__ == "__main__":  # pragma: no cover
 
     if not args.e:
         # pprint available endoints
-        pprint.pprint(sorted(str(k) for k, v in lds.endpoints.items()
-                     if isinstance(v, str) and v.startswith('http')))
+        for k, v in sorted((_ for _ in lds.endpoints.items()
+                           if _[-1].startswith('http'))):
+                            print("[{:25s}] {}".format(k, v))
     else:
         lds.signin(username, password)
-        rv = lds.get(args.e, *[int(_) for _ in args.arg])
+        rv = lds.get(args.e, member=args.m, unit=args.u, *args.args)
         if rv.status_code != 200:
             print("Error: %d %s" % (rv.status_code, str(rv)))
         content_type = rv.headers['content-type']
