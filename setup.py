@@ -21,11 +21,13 @@ setup(
     download_url='https://github.com/jidn/lds-org/tarball/' + __version__,
     description='Access LDS.org json information',
     long_description=open('README.md').read(),
+    license='MIT License',
     version=__version__,
     keywords=['lds'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
         'Environment :: Web Environment',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 2.7',
