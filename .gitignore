@@ -1,7 +1,9 @@
 *.swp
 *.pyc
-.*
-env
+.env/
+.requirements.log
+.tox/
+.cache/
 environ.sh
 htmlcov
 build
