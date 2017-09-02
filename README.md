@@ -1,6 +1,6 @@
 ![version](http://img.shields.io/pypi/v/lds_org.svg)
 ![license](http://img.shields.io/pypi/l/lds_org.svg)
-![Travis](https://img.shields.io/travis/jidn/lds-org.svg)
+![Travis](https://img.shields.io/travis/jidn/LDS-org.svg)
 ![coverage](https://coveralls.io/repos/github/jidn/lds_org/badge.svg?branch=master)
 
 # LDS-org
