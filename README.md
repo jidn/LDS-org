@@ -102,6 +102,12 @@ python -m lds_org -e current-user-id
 python -m lds_org -e photo-url -m memberId individual
 ```
 
+### JSON
+
+When asking for endpoint information from the command line, the output is pretty printed.
+However, you may want to take the information and use it.  You want the output in JSON.
+Using the command line option of `-j` the endpoint data is given as JSON.
+
 ### Secure your username and password
 
 You need to keep your username and password secret.  However, you also

@@ -4,7 +4,7 @@ import logging
 import pprint
 import requests
 
-__version__ = '0.2.0a1'
+__version__ = '0.2.0rc2'
 CONFIG_URL = "https://tech.lds.org/mobile/ldstools/config.json"
 ENV_USERNAME = 'LDSORG_USERNAME'
 ENV_PASSWORD = 'LDSORG_PASSWORD'
@@ -243,6 +243,7 @@ if __name__ == "__main__":  # pragma: no cover
     import sys
     import argparse
     import getpass
+    import json
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', metavar='ENDPOINT',
@@ -251,6 +252,7 @@ if __name__ == "__main__":  # pragma: no cover
                         help="Member number")
     parser.add_argument('-u', metavar='UNIT', default=None,
                         help='Unit number other than authorized users')
+    parser.add_argument('-j', action='store_true', help="output as JSON")
     parser.add_argument('args', nargs='*',
                         help='Arguments for endpoint URLs')
     parser.add_argument('--log', help='Filename for log, - for stdout')
@@ -294,4 +296,7 @@ if __name__ == "__main__":  # pragma: no cover
             print("<!-- %s -->" % rv.url)
             print(rv.text)
         elif 'json' in content_type:
-            pprint.pprint(rv.json())
+            if not args.j:
+                pprint.pprint(rv.json())
+            else:
+                print(json.dumps(rv.json(), sort_keys=True))
