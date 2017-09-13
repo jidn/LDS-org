@@ -4,12 +4,13 @@ import collections
 import logging
 from io import StringIO
 import pytest
-import context
+import context  # noqa: F401
 import lds_org
 
 # lds_org.logger.addHandler(logging.FileHandler('test.log', 'wt'))
 lds_org.logger.addHandler(logging.StreamHandler(sys.stdout))
 lds_org.logger.setLevel(logging.DEBUG)
+
 
 @pytest.mark.xfail(not os.getenv(lds_org.ENV_USERNAME) or
                    not os.getenv(lds_org.ENV_PASSWORD),
@@ -22,6 +23,11 @@ class TestSignin(object):
     LDSORG_USERNAME
     LDSORG_PASSWORD
     """
+
+    def test_environment_vars(self):
+        username = os.getenv(lds_org.ENV_USERNAME)
+        password = os.getenv(lds_org.ENV_PASSWORD)
+        assert all((username, password))
 
     def test_signin_params(self):
         username = os.getenv(lds_org.ENV_USERNAME)
@@ -123,6 +129,9 @@ class TestSignin(object):
         lds_org.logger.removeHandler(handler)
 
 
+@pytest.mark.xfail(not os.getenv(lds_org.ENV_USERNAME) or
+                   not os.getenv(lds_org.ENV_PASSWORD),
+                   reason='Missing environment username/password')
 class TestSnippets(object):
 
     def test_get_using_unit(self):
@@ -156,11 +165,6 @@ class TestWithoutSignin(object):
         with pytest.raises(lds_org.Error) as err:
             lds_org.LDSOrg('CainTheCursed', 'sonofadam', signin=True)
         assert str(err.value).endswith('password failed')
-
-    def test_environment_vars(self):
-        username = os.getenv(lds_org.ENV_USERNAME)
-        password = os.getenv(lds_org.ENV_PASSWORD)
-        assert all((username, password))
 
     def test_endpoints(self):
         """Help detect changes in endpoints.

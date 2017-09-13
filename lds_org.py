@@ -1,3 +1,35 @@
+"""Get LDS.org information in JSON.
+
+There are a series of named endpoints which map directly to a URL.
+Some of these URLs expect to have a value such as the local unit
+number, which are handled silently behind the scenes.
+
+This module can be used from the command line to collect and examine
+the returned data in either a pretty printed format or JSON by using
+the commandline option '-j'.
+
+Examples:
+    See all the published endpoints.
+    $ python -m lds_org
+
+    See callings with peoples names
+    $ python -m lds_org -e callings-with-dates
+
+    Export username and password to the environment to prevent system
+    from asking for them.
+    $ export LDSORG_USERNAME = your username
+    $ export LDSORG_PASSWORD = "your password"
+
+    List of members who have moved in within the last X months.  This is
+    a case where we need to provide extra information, the number of
+    months.  Simply add it to the command line.
+    $ python -m lds_org -e members-moved-in 2
+
+    Get the URL to a members photo.  First you need to know the members
+    ID number.  Get your current membership number
+    $ python -m lds_org -e current-user-id
+    $ python -m lds_org -e photo-url -m memberID individual
+"""
 import os
 import contextlib
 import logging
@@ -20,14 +52,11 @@ class Error(Exception):
 
 @contextlib.contextmanager
 def session(username=None, password=None):
-    """A context manager.
+    """Use LDSOrg as a context manager.
 
     Example:
-    ```
-    with session() as lds:
-        rv = lds.get(....)
-        ....
-    ```
+    >>> with session() as lds:
+    ...     rv = lds.get(....)
     """
     lds = LDSOrg(username, password, signin=True)
     logger.debug(u"%x yielding start", id(lds.session))
@@ -72,7 +101,7 @@ class LDSOrg(object):
         return self.endpoints[key]
 
     def __getattr__(self, key):
-        """Reflect to session for any needs.
+        """Reflect to requests.Session for any needs.
 
         Now we can use the class instance just as we would a session.
         """
@@ -82,8 +111,10 @@ class LDSOrg(object):
     def signin(self, username=None, password=None, url=None):
         """Sign in to LDS.org using a member username and password.
 
-        To keep username and password out of code, use the following
-        environment variables: LDSORG_USERNAME AND LDSORG_PASSWORD
+        While allowed, use environment variable to keep credentials out
+        of code repositories.  Environment variables are:
+            LDSORG_USERNAME
+            LDSORG_PASSWORD
 
         Args:
             username (str or None): LDS.org username or use environ
@@ -200,11 +231,11 @@ class LDSOrg(object):
         return rv
 
     def _debug(self, msg, *args):
-        """Wrap logging with session number"""
+        """Wrap logging with session number."""
         return logger.debug(u'%x ' + msg, id(self.session), *args)
 
     def _error(self, msg, *args):
-        """Wrap logging with session number"""
+        """Wrap logging with session number."""
         return logger.error(u'%x ' + msg, id(self.session), *args)
 
     def _get_endpoints(self):
@@ -246,58 +277,61 @@ if __name__ == "__main__":  # pragma: no cover
     import getpass
     import json
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-e', metavar='ENDPOINT',
-                        help="Endpoint to pretty print")
-    parser.add_argument('-m', metavar='MEMBER', default=None,
-                        help="Member number")
-    parser.add_argument('-u', metavar='UNIT', default=None,
-                        help='Unit number other than authorized users')
-    parser.add_argument('-j', action='store_true', help="output as JSON")
-    parser.add_argument('args', nargs='*',
-                        help='Arguments for endpoint URLs')
-    parser.add_argument('--log', help='Filename for log, - for stdout')
-    args = parser.parse_args()
+    def main():
+        """Remove module execution variables from globals."""
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-e', metavar='ENDPOINT',
+                            help="Endpoint to pretty print")
+        parser.add_argument('-m', metavar='MEMBER', default=None,
+                            help="Member number")
+        parser.add_argument('-u', metavar='UNIT', default=None,
+                            help='Unit number other than authorized users')
+        parser.add_argument('-j', action='store_true', help="output as JSON")
+        parser.add_argument('args', nargs='*',
+                            help='Arguments for endpoint URLs')
+        parser.add_argument('--log', help='Filename for log, - for stdout')
+        args = parser.parse_args()
 
-    if args.log:
-        if args.log == '-':
-            h = logging.StreamHandler(sys.stdout)
-        else:
-            h = logging.FileHandler(args.log, 'wt')
-        logger.addHandler(h)
-        logger.setLevel(logging.DEBUG)
-
-    username = os.getenv(ENV_USERNAME)
-    password = os.getenv(ENV_PASSWORD)
-    if not all((username, password)):
-        logger.info("Asking for username and password.")
-        asking = raw_input if sys.version_info.major < 3 else input
-        username = asking('LDS.org username:')
-        password = getpass.getpass('LDS.org password:')
-        if not all((username, password)):
-            print("Give username and password at input or set environment"
-                  " %s and %s." % (ENV_USERNAME, ENV_PASSWORD))
-            sys.exit(1)
-
-    lds = LDSOrg()
-
-    if not args.e:
-        # pprint available endoints
-        for k, v in sorted((_ for _ in lds.endpoints.items()
-                           if _[-1].startswith('http'))):
-                            print("[{:25s}] {}".format(k, v))
-    else:
-        lds.signin(username, password)
-        rv = lds.get(args.e, member=args.m, unit=args.u, *args.args)
-        if rv.status_code != 200:
-            print("Error: %d %s" % (rv.status_code, str(rv)))
-        content_type = rv.headers['content-type']
-        if 'html' in content_type:
-            print("<!-- %s -->" % str(rv))
-            print("<!-- %s -->" % rv.url)
-            print(rv.text)
-        elif 'json' in content_type:
-            if not args.j:
-                pprint.pprint(rv.json())
+        if args.log:
+            if args.log == '-':
+                h = logging.StreamHandler(sys.stdout)
             else:
-                print(json.dumps(rv.json(), sort_keys=True))
+                h = logging.FileHandler(args.log, 'wt')
+            logger.addHandler(h)
+            logger.setLevel(logging.DEBUG)
+
+        username = os.getenv(ENV_USERNAME)
+        password = os.getenv(ENV_PASSWORD)
+        if not all((username, password)):
+            logger.info("Asking for username and password.")
+            asking = raw_input if sys.version_info.major < 3 else input
+            username = asking('LDS.org username:')
+            password = getpass.getpass('LDS.org password:')
+            if not all((username, password)):
+                print("Give username and password at input or set environment"
+                      " %s and %s." % (ENV_USERNAME, ENV_PASSWORD))
+                sys.exit(1)
+
+        lds = LDSOrg()
+
+        if not args.e:
+            # pprint available endoints
+            for k, v in sorted((_ for _ in lds.endpoints.items()
+                                if _[-1].startswith('http'))):
+                print("[{:25s}] {}".format(k, v))
+        else:
+            lds.signin(username, password)
+            rv = lds.get(args.e, member=args.m, unit=args.u, *args.args)
+            if rv.status_code != 200:
+                print("Error: %d %s" % (rv.status_code, str(rv)))
+            content_type = rv.headers['content-type']
+            if 'html' in content_type:
+                print("<!-- %s -->" % str(rv))
+                print("<!-- %s -->" % rv.url)
+                print(rv.text)
+            elif 'json' in content_type:
+                if not args.j:
+                    pprint.pprint(rv.json())
+                else:
+                    print(json.dumps(rv.json(), sort_keys=True))
+    main()
