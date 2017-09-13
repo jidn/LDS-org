@@ -27,15 +27,15 @@ class TestSignin(object):
         username = os.getenv(lds_org.ENV_USERNAME)
         password = os.getenv(lds_org.ENV_PASSWORD)
         lds = lds_org.LDSOrg()
-        assert lds.unitNo == ''
+        assert lds.unit_number == ''
         lds.signin(username, password)
-        assert lds.signedIn is True
+        assert lds.signed_in is True
         lds._get_unit()
-        assert lds.unitNo
+        assert lds.unit_number
 
     def test_as_context(self):
         with lds_org.session() as lds:
-            assert lds.signedIn
+            assert lds.signed_in
 
     def test_get_using_endpoint(self):
         with lds_org.session() as lds:
@@ -61,7 +61,7 @@ class TestSignin(object):
         with lds_org.session() as lds:
             rv = lds.get('current-user-detail')
             assert 200 == rv.status_code
-            assert lds.unitNo == ''
+            assert lds.unit_number == ''
             details = rv.json()
 
             # Needs member number
@@ -70,7 +70,7 @@ class TestSignin(object):
                 assert 'member' in err.args
 
             # Needs positional arguments
-            with pytest.raises(lds_org.ExceptionLDS) as err:
+            with pytest.raises(lds_org.Error) as err:
                 lds.get('photo-url', member=details['individualId'])
                 assert err.value.args[0].endswith('positional arguments')
 
@@ -82,7 +82,7 @@ class TestSignin(object):
 
     def test_endpoint_needs_more(self):
         with lds_org.session() as lds:
-            with pytest.raises(lds_org.ExceptionLDS) as err:
+            with pytest.raises(lds_org.Error) as err:
                 lds.get('cal2x-event')
             assert err.value.args[0].endswith('positional arguments')
 
@@ -153,7 +153,7 @@ class TestSnippets(object):
 class TestWithoutSignin(object):
 
     def test_signin_fails(object):
-        with pytest.raises(lds_org.ExceptionLDS) as err:
+        with pytest.raises(lds_org.Error) as err:
             lds_org.LDSOrg('CainTheCursed', 'sonofadam', signin=True)
         assert str(err.value).endswith('password failed')
 

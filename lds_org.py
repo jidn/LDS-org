@@ -55,7 +55,7 @@ class LDSOrg(object):
             url (str): override the current signin URL when it changes
         """
         self.session = requests.Session()
-        self.unitNo = ''
+        self.unit_number = ''
 
         self._get_endpoints()
         if url is None:
@@ -94,7 +94,7 @@ class LDSOrg(object):
             Error
 
         Side effects:
-            self.signedIn = True
+            self.signed_in = True
         """
         if username is None:
             username = os.getenv(ENV_USERNAME)
@@ -109,7 +109,7 @@ class LDSOrg(object):
         if 'etag' not in rv.headers:
             raise Error('Username/password failed')
         self._debug(u'SIGNIN success!')
-        self.signedIn = True
+        self.signed_in = True
 
     def _get_unit(self):
         """Get unit number of currently logged in user.
@@ -117,16 +117,16 @@ class LDSOrg(object):
         Returns: (str) unit number
 
         Side Effect:
-            adds attribute 'unitNo' to object
+            adds attribute 'unit_number' to object
         """
 
         self._debug(u'Silently get unit number')
         rv = self.get('current-user-unit')
         assert rv.status_code == 200
         self._debug(u'Headers %s', pprint.pformat(rv.headers))
-        self.unitNo = rv.json()['message']
-        self._debug(u'unit number = %s', self.unitNo)
-        return self.unitNo
+        self.unit_number = rv.json()['message']
+        self._debug(u'unit number = %s', self.unit_number)
+        return self.unit_number
 
     def get(self, endpoint, *args, **kwargs):
         """Get an HTTP response from endpoint or URL.
@@ -169,8 +169,8 @@ class LDSOrg(object):
 
             except KeyError:
                 pass
-        if 'unit' not in unit_member and self.unitNo:
-            unit_member['unit'] = self.unitNo
+        if 'unit' not in unit_member and self.unit_number:
+            unit_member['unit'] = self.unit_number
         # Do any substitution in the endpoint
         try:
             url = url.format(*args, **unit_member)
