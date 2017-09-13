@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 import os
-from setuptools import setup, find_packages
+from setuptools import setup  # , find_packages
 
 BASEDIR = os.path.dirname(__file__)
+__version__ = '0'
+# Now lets got find the real version number
 for _ in open(os.path.join(BASEDIR, 'lds_org.py')).readlines():
     if _.startswith('__version__'):
         exec(_.strip(), None)
         break
+else:
+    raise RuntimeError("Unable to find __version__ in lds_org.py")
 
 requirements = [
     'requests',
