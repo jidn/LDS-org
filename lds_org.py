@@ -12,8 +12,9 @@ ENV_PASSWORD = 'LDSORG_PASSWORD'
 logger = logging.getLogger("lds-org")
 
 
-class ExceptionLDS(Exception):
-    """Exceptions for module logic"""
+class Error(Exception):
+    """Exceptions for module logic."""
+
     pass
 
 
@@ -90,7 +91,7 @@ class LDSOrg(object):
             url (str): Override the default endpoint url
 
         Exceptions:
-            ExceptionLDS
+            Error
 
         Side effects:
             self.signedIn = True
@@ -106,7 +107,7 @@ class LDSOrg(object):
         rv = self.session.post(url, data={'username': username,
                                           'password': password})
         if 'etag' not in rv.headers:
-            raise ExceptionLDS('Username/password failed')
+            raise Error('Username/password failed')
         self._debug(u'SIGNIN success!')
         self.signedIn = True
 
@@ -146,7 +147,7 @@ class LDSOrg(object):
             :class:`requests.Response`
 
         Exceptions:
-            ExceptionLDS for unknown endpoint
+            Error for unknown endpoint
             KeyError for missing endpoint keyword arguments
         """
         self._debug(u'GET %s', endpoint)
@@ -156,7 +157,7 @@ class LDSOrg(object):
             if endpoint.startswith('http'):
                 url = endpoint
             else:
-                raise ExceptionLDS("Unknown endpoint", endpoint)
+                raise Error("Unknown endpoint", endpoint)
 
         # Get any unit or member information
         unit_member = dict()
@@ -175,8 +176,8 @@ class LDSOrg(object):
             url = url.format(*args, **unit_member)
         except IndexError:
             self._error(u"missing positional args %s", args)
-            raise ExceptionLDS("Missing positional arguments",
-                               url, args, unit_member)
+            raise Error("Missing positional arguments",
+                        url, args, unit_member)
         except KeyError as err:
             if 'unit' in err.args:
                 self._debug(u"'unit' needed. Get it and retry.")
