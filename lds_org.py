@@ -271,6 +271,22 @@ class LDSOrg(object):
                     v = ep[k] = v.replace(pattern, '{}')
 
 
+class DataAdapter(object):
+    """Adapts dict JSON data provided by LDS.org.
+
+    Allows you to access json data as attributes.
+
+    >>> DataAdapter({'a': 123}).a
+    123
+    """
+
+    def __init__(self, data):
+        self._data = data
+
+    def __getattr__(self, name):
+        return self._data[name]
+
+
 if __name__ == "__main__":  # pragma: no cover
     import sys
     import argparse
