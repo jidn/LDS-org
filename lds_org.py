@@ -36,7 +36,7 @@ import logging
 import pprint
 import requests
 
-__version__ = '0.2.0rc3'
+__version__ = '0.2.0'
 CONFIG_URL = "https://tech.lds.org/mobile/ldstools/config.json"
 ENV_USERNAME = 'LDSORG_USERNAME'
 ENV_PASSWORD = 'LDSORG_PASSWORD'
