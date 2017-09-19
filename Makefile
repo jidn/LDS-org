@@ -12,6 +12,7 @@ ENV = .env
 # Override by putting on commandline:  python=python2.7
 python = python
 REQUIRE = requirements.txt
+LINT_IGNORE = C0325
 PEP8_IGNORE := E501,E123
 PEP257_IGNORE := D104,D203
 ##############################################################################
@@ -27,7 +28,7 @@ SYS_VIRTUALENV := virtualenv
 PIP := $(BIN)/pip
 TOX := $(BIN)/tox
 PYTHON := $(BIN)/$(python)
-FLAKE8 := $(BIN)/flake8
+LINT := $(BIN)/pylint
 PEP257 := $(BIN)/pydocstyle
 COVERAGE := $(BIN)/coverage
 TEST_RUNNER := $(BIN)/py.test
@@ -38,9 +39,11 @@ $(TEST_RUNNER): env
 PKGDIR := $(or $(PACKAGE), ./)
 REQUIREMENTS := $(shell find ./ -name $(REQUIRE))
 SETUP_PY := $(wildcard setup.py)
-SOURCES := $(wildcard *.py)
+SOURCES := $(or $(PACKAGE), $(wildcard *.py))
+COVERAGE_RC := $(wildcard default.coveragerc)
 EGG_INFO := $(subst -,_,$(PROJECT)).egg-info
-COVER_ARG := --cov-report term-missing --cov=$(PKGDIR)
+COVER_ARG := --cov-report term-missing --cov=$(PKGDIR) \
+	$(if $(COVERAGE_RC), --cov-config $(COVERAGE_RC))
 #»   --cov-config .coveragerc
 
 # Flags for environment/tools
@@ -76,17 +79,17 @@ help:
 	@echo "clean clean-all  Clean up and clean up removing virtualenv"
 
 ### Static Analysis & Travis CI ##############################################
-.PHONY: check flake8 pep257
-check: flake8 pep257
+.PHONY: check pylint pep257
+check: pylint pep257
 
-$(FLAKE8): $(PIP)
-	$(PIP) install --upgrade flake8 pydocstyle | tee -a $(LOG_REQUIRE)
+$(LINT): $(PIP)
+	$(PIP) install --upgrade pylint pydocstyle | tee -a $(LOG_REQUIRE)
 
-flake8: $(FLAKE8)
-	$(FLAKE8) $(or $(PACKAGE), $(SOURCES)) $(TESTDIR) --ignore=$(PEP8_IGNORE)
+pylint: $(LINT)
+	$(LINT) $(SOURCES) $(TESTDIR) -d $(LINT_IGNORE)
 
-pep257: $(FLAKE8)
-	$(PEP257) $(or $(PACKAGE), $(SOURCES)) $(ARGS) --ignore=$(PEP257_IGNORE)
+pep257:
+	$(PEP257) $(SOURCES) $(ARGS) --ignore=$(PEP257_IGNORE)
 
 ### Testing ##################################################################
 .PHONY: test coverage tox
