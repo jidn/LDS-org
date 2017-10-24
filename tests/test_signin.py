@@ -4,7 +4,7 @@ import collections
 import logging
 from io import StringIO
 import pytest
-import context  # noqa: F401
+#import context  # noqa: F401
 import lds_org
 
 # lds_org.logger.addHandler(logging.FileHandler('test.log', 'wt'))
