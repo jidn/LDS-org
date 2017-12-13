@@ -36,7 +36,7 @@ import logging
 import pprint
 import requests
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 CONFIG_URL = "https://tech.lds.org/mobile/ldstools/config.json"
 ENV_USERNAME = 'LDSORG_USERNAME'
 ENV_PASSWORD = 'LDSORG_PASSWORD'
@@ -316,18 +316,6 @@ if __name__ == "__main__":  # pragma: no cover
             logger.addHandler(h)
             logger.setLevel(logging.DEBUG)
 
-        username = os.getenv(ENV_USERNAME)
-        password = os.getenv(ENV_PASSWORD)
-        if not all((username, password)):
-            logger.info("Asking for username and password.")
-            asking = raw_input if sys.version_info.major < 3 else input
-            username = asking('LDS.org username:')
-            password = getpass.getpass('LDS.org password:')
-            if not all((username, password)):
-                print("Give username and password at input or set environment"
-                      " %s and %s." % (ENV_USERNAME, ENV_PASSWORD))
-                sys.exit(1)
-
         lds = LDSOrg()
 
         if not args.e:
@@ -336,6 +324,18 @@ if __name__ == "__main__":  # pragma: no cover
                                 if _[-1].startswith('http'))):
                 print("[{:25s}] {}".format(k, v))
         else:
+            username = os.getenv(ENV_USERNAME)
+            password = os.getenv(ENV_PASSWORD)
+            if not all((username, password)):
+                logger.info("Asking for username and password.")
+                asking = raw_input if sys.version_info.major < 3 else input
+                username = asking('LDS.org username:')
+                password = getpass.getpass('LDS.org password:')
+                if not all((username, password)):
+                    print("Give username and password at input or set environment"
+                        " %s and %s." % (ENV_USERNAME, ENV_PASSWORD))
+                    sys.exit(1)
+
             lds.signin(username, password)
             rv = lds.get(args.e, member=args.m, unit=args.u, *args.args)
             if rv.status_code != 200:
